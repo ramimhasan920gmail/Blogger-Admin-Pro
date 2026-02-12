@@ -53,6 +53,7 @@ export interface AuthState {
 export interface AppSettings {
   openAiApiKey?: string;
   grokApiKey?: string;
+  tmdbApiKey?: string;
 }
 
 export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR' | 'FETCH_MOVIE_DETAILS';

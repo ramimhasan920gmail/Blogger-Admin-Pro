@@ -12,7 +12,19 @@ export class AIService {
   async getSuggestion(type: AISuggestionType, context: { title: string; content: string }) {
     const errors: string[] = [];
 
-    // 1. Try Gemini first (Using system API Key exclusively)
+    // Special case for Fetching Movie Details: Try TMDB First as it's the most reliable
+    if (type === 'FETCH_MOVIE_DETAILS' && this.settings.tmdbApiKey) {
+      try {
+        console.log("Attempting with TMDB API...");
+        const tmdbData = await this.callTMDB(context.title);
+        if (tmdbData) return { text: JSON.stringify(tmdbData), grounding: [] };
+      } catch (e: any) {
+        console.warn("TMDB failed:", e.message);
+        errors.push(`TMDB: ${e.message}`);
+      }
+    }
+
+    // 1. Try Gemini (Primary AI)
     try {
       console.log("Attempting with Gemini (System API)...");
       return await this.callGemini(type, context);
@@ -44,14 +56,51 @@ export class AIService {
     }
 
     const errorMsg = errors.length > 0 
-      ? `সবগুলো এআই প্রোভাইডার ব্যর্থ হয়েছে:\n${errors.join('\n')}`
-      : "কোনো এআই প্রোভাইডার কনফিগার করা নেই।";
+      ? `সবগুলো এআই ও ডাটা প্রোভাইডার ব্যর্থ হয়েছে:\n${errors.join('\n')}`
+      : "কোনো এপিআই কনফিগার করা নেই।";
       
     throw new Error(errorMsg);
   }
 
+  private async callTMDB(title: string) {
+    const apiKey = this.settings.tmdbApiKey;
+    if (!apiKey) return null;
+
+    // 1. Search for the movie/tv show
+    const searchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(title)}&language=en-US`;
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) throw new Error("TMDB Search Error");
+    const searchData = await searchRes.json();
+
+    if (!searchData.results || searchData.results.length === 0) {
+      return null; // Not found on TMDB
+    }
+
+    const firstResult = searchData.results[0];
+    const id = firstResult.id;
+    const type = firstResult.media_type; // 'movie' or 'tv'
+
+    // 2. Get detailed info including credits
+    const detailsUrl = `https://api.themoviedb.org/3/${type}/${id}?api_key=${apiKey}&append_to_response=credits,images`;
+    const detailsRes = await fetch(detailsUrl);
+    if (!detailsRes.ok) throw new Error("TMDB Details Error");
+    const details = await detailsRes.json();
+
+    // Map TMDB data to our MovieTemplateData format
+    return {
+      genre: (details.genres || []).map((g: any) => g.name).join(', '),
+      imdb: details.vote_average ? details.vote_average.toFixed(1) : "N/A",
+      plot: details.overview || "",
+      director: details.credits?.crew?.find((c: any) => c.job === 'Director')?.name || "N/A",
+      cast: (details.credits?.cast || []).slice(0, 5).map((c: any) => c.name).join(', '),
+      budget: details.budget ? `$${(details.budget / 1000000).toFixed(1)} Million` : "N/A",
+      releaseDate: details.release_date || details.first_air_date || "N/A",
+      language: details.spoken_languages?.[0]?.english_name || details.original_language || "English",
+      posterUrl: details.poster_path ? `https://image.tmdb.org/t/p/w500${details.poster_path}` : ""
+    };
+  }
+
   private async callGemini(type: AISuggestionType, context: { title: string; content: string }) {
-    // process.env.API_KEY is pre-configured and must be used directly
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const modelName = 'gemini-3-flash-preview';
     
@@ -67,7 +116,6 @@ export class AIService {
       contents: prompt,
       config: {
         tools,
-        // responseMimeType: 'application/json' cannot be used with googleSearch
         responseMimeType: (type === 'FETCH_MOVIE_DETAILS' || tools) ? undefined : "application/json",
       },
     });

@@ -6,7 +6,7 @@ import { BloggerService } from './services/bloggerService';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import PostEditor from './components/PostEditor';
-import { LogIn, Loader2, Settings, ShieldAlert, Key, Save, AlertCircle, Bot, Zap } from 'lucide-react';
+import { LogIn, Loader2, Settings, ShieldAlert, Key, Save, AlertCircle, Bot, Zap, Film } from 'lucide-react';
 
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>({
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>({
     openAiApiKey: localStorage.getItem('app_openai_api_key') || '',
     grokApiKey: localStorage.getItem('app_grok_api_key') || '',
+    tmdbApiKey: localStorage.getItem('app_tmdb_api_key') || '',
   });
 
   const [view, setView] = useState<'DASHBOARD' | 'EDITOR' | 'SETTINGS'>('DASHBOARD');
@@ -87,6 +88,7 @@ const App: React.FC = () => {
   const handleSaveSettings = () => {
     localStorage.setItem('app_openai_api_key', settings.openAiApiKey?.trim() || '');
     localStorage.setItem('app_grok_api_key', settings.grokApiKey?.trim() || '');
+    localStorage.setItem('app_tmdb_api_key', settings.tmdbApiKey?.trim() || '');
     setSettingsStatus('success');
     setTimeout(() => { setSettingsStatus('idle'); setView('DASHBOARD'); }, 1500);
   };
@@ -124,13 +126,30 @@ const App: React.FC = () => {
           <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
             <div className="p-8 bg-slate-900 text-white">
               <h2 className="text-2xl font-bold flex items-center"><Settings className="w-6 h-6 mr-3 text-orange-400" /> API Settings</h2>
-              <p className="text-slate-400 text-sm mt-2">Gemini is used by default. Add fallbacks for high-traffic needs.</p>
+              <p className="text-slate-400 text-sm mt-2">Configure Movie Database and AI Fallbacks.</p>
             </div>
             <div className="p-8 space-y-6">
               <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl flex items-start">
                 <Key className="w-5 h-5 text-orange-500 mr-3 mt-0.5" />
                 <p className="text-sm text-orange-800 font-medium">Gemini (Primary) is managed by the system. No key required.</p>
               </div>
+              
+              {/* TMDB API Key */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                  <Film className="w-4 h-4 mr-2 text-blue-500" /> 
+                  TMDB API Key (Best for Movie Data)
+                </label>
+                <input 
+                  type="text" 
+                  value={settings.tmdbApiKey} 
+                  onChange={(e) => setSettings({...settings, tmdbApiKey: e.target.value})} 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-xs focus:ring-2 focus:ring-blue-500 transition-all" 
+                  placeholder="Paste TMDB API Key (v3 auth)..." 
+                />
+                <p className="text-[10px] text-slate-400 mt-1 italic">Get one at themoviedb.org/settings/api</p>
+              </div>
+
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center"><Bot className="w-4 h-4 mr-2 text-green-500" /> OpenAI API Key (Fallback)</label>
                 <input type="text" value={settings.openAiApiKey} onChange={(e) => setSettings({...settings, openAiApiKey: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-xs" placeholder="sk-..." />
@@ -140,7 +159,7 @@ const App: React.FC = () => {
                 <input type="text" value={settings.grokApiKey} onChange={(e) => setSettings({...settings, grokApiKey: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-xs" placeholder="xai-..." />
               </div>
               <div className="pt-4 flex gap-3">
-                <button onClick={handleSaveSettings} className="flex-1 py-3 bg-orange-600 text-white rounded-xl font-bold shadow-lg hover:bg-orange-700 transition-all">{settingsStatus === 'success' ? 'Settings Saved!' : <span className="flex items-center justify-center"><Save className="w-5 h-5 mr-2" /> Save Fallbacks</span>}</button>
+                <button onClick={handleSaveSettings} className="flex-1 py-3 bg-orange-600 text-white rounded-xl font-bold shadow-lg hover:bg-orange-700 transition-all">{settingsStatus === 'success' ? 'Settings Saved!' : <span className="flex items-center justify-center"><Save className="w-5 h-5 mr-2" /> Save All Settings</span>}</button>
                 <button onClick={() => setView('DASHBOARD')} className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Back</button>
               </div>
             </div>

@@ -65,7 +65,6 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
           setTitle(post.title);
           setContent(post.content);
           
-          // Separate predefined from custom labels
           const pLabels = post.labels || [];
           const predefined = pLabels.filter(l => PREDEFINED_LABELS.includes(l));
           const custom = pLabels.filter(l => !PREDEFINED_LABELS.includes(l));
@@ -128,8 +127,11 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
       }
       return JSON.parse(cleaned);
     } catch (e) {
-      console.error("JSON extraction error:", e);
-      throw new Error("এআই ডেটা সঠিক ফরম্যাটে দিতে পারেনি। অন্য কোনো এপিআই ট্রাই করুন।");
+      // If direct parsing fails, maybe it's already a stringified object from TMDB
+      try { return JSON.parse(text); } catch(e2) {
+        console.error("JSON extraction error:", e);
+        throw new Error("ডেটা সঠিক ফরম্যাটে পাওয়া যায়নি।");
+      }
     }
   };
 
@@ -152,13 +154,14 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
         cast: data.cast || prev.cast,
         budget: data.budget || prev.budget,
         releaseDate: data.releaseDate || prev.releaseDate,
-        language: data.language || prev.language
+        language: data.language || prev.language,
+        posterUrl: data.posterUrl || prev.posterUrl
       }));
-      setSources(result.grounding);
+      setSources(result.grounding || []);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch (err: any) {
-      setError("AI Auto-fill failed: " + err.message);
+      setError("Auto-fill failed: " + err.message);
     } finally {
       setAiLoading(false);
     }
@@ -171,7 +174,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
     try {
       const result = await aiService.getSuggestion(type, { title, content: content || movieData.plot });
       setAiResult(typeof result.text === 'string' ? result.text : JSON.stringify(result.text));
-      setSources(result.grounding);
+      setSources(result.grounding || []);
     } catch (err: any) {
       setError('AI Assistant error: ' + err.message);
     } finally {
@@ -225,7 +228,6 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
     if (!title.trim()) { setError('Title is required'); return; }
     setLoading(true); setError(null); setSuccess(false);
     
-    // Combine selected quick labels and manual labels
     const customList = customLabels.split(',').map(l => l.trim()).filter(l => l !== '');
     const finalLabels = [...new Set([...selectedLabels, ...customList])];
     
@@ -269,8 +271,8 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
                 disabled={aiLoading}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold flex items-center shadow-md hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-95"
               >
-                {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                Auto-Fill (AI)
+                {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Film className="w-4 h-4 mr-2" />}
+                Auto-Fill Info
               </button>
               <button onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold flex items-center shadow-sm hover:bg-slate-50 transition-all"><Sparkles className="w-4 h-4 mr-2 text-orange-400" /> AI Helper</button>
               <button onClick={() => handleSave(false)} className="px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center"><Save className="w-4 h-4 mr-2" /> {loading && !postId ? 'Creating...' : 'Save Draft'}</button>
@@ -280,14 +282,12 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-6">
-              {/* Title & Info Card */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Movie/Series Title</label>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-lg" placeholder="e.g., Inception (2010)"/>
                 </div>
 
-                {/* Labels Management */}
                 <div className="pt-2 border-t border-slate-50">
                   <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider flex items-center"><Hash className="w-3 h-3 mr-1" /> Categories (Labels)</label>
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -343,7 +343,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
 
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Users className="w-3 h-3 mr-1" /> Cast Members</label>
-                  <input type="text" value={movieData.cast} onChange={(e) => setMovieData({...movieData, cast: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Leonardo DiCaprio, Joseph Gordon-Levitt..."/>
+                  <input type="text" value={movieData.cast} onChange={(e) => setMovieData({...movieData, cast: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Leonardo DiCaprio..."/>
                 </div>
 
                 <div>
@@ -359,7 +359,6 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
             </div>
 
             <div className="space-y-6">
-              {/* Download Links Card */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
                    <div className="flex items-center space-x-2 text-slate-400"><Link className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Download Buttons</span></div>
@@ -376,16 +375,6 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
                     </div>
                   ))}
                 </div>
-                {sources.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-slate-50">
-                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-2 flex items-center"><Globe className="w-3 h-3 mr-1" /> Live Web Sources</p>
-                    <div className="flex flex-col gap-1">
-                      {sources.map((src, i) => src.web && (
-                        <a key={i} href={src.web.uri} target="_blank" className="text-[10px] text-blue-500 hover:underline truncate transition-all opacity-70 hover:opacity-100">{src.web.title || src.web.uri}</a>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
