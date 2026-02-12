@@ -6,7 +6,7 @@ export class AIService {
   private apiKey: string;
 
   constructor(userApiKey?: string) {
-    // Trim the API key to remove any accidental newlines or spaces that cause ISO-8859-1 errors
+    // Trim the API key to remove any accidental newlines or spaces
     this.apiKey = (userApiKey || process.env.API_KEY || '').trim();
   }
 
@@ -17,7 +17,8 @@ export class AIService {
 
     try {
       const ai = new GoogleGenAI({ apiKey: this.apiKey });
-      const model = 'gemini-3-pro-preview';
+      // Using gemini-3-flash-preview for better quota availability and speed
+      const model = 'gemini-3-flash-preview';
       
       let prompt = "";
       let tools: any[] | undefined = undefined;
@@ -61,11 +62,18 @@ export class AIService {
         grounding: groundingChunks
       };
     } catch (error: any) {
-      console.error("Gemini API Error:", error);
-      // Catching the specific header error and providing a user-friendly message
-      if (error.message?.includes('Headers') || error.message?.includes('ISO-8859-1')) {
-        throw new Error("Invalid API Key format. Please re-copy your key from Google AI Studio and ensure there are no extra spaces.");
+      console.error("Gemini API Error details:", error);
+      
+      // Handle Quota Exceeded error (429)
+      if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+        throw new Error("AI Quota Exceeded. Please wait a few seconds or try a different API Key.");
       }
+      
+      // Catching the specific header error
+      if (error.message?.includes('Headers') || error.message?.includes('ISO-8859-1')) {
+        throw new Error("Invalid API Key format. Please re-copy your key and ensure no spaces are added.");
+      }
+
       throw new Error(error.message || "Failed to communicate with Gemini AI.");
     }
   }
