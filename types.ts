@@ -54,6 +54,7 @@ export interface AppSettings {
   openAiApiKey?: string;
   grokApiKey?: string;
   tmdbApiKey?: string;
+  omdbApiKey?: string;
 }
 
 export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR' | 'FETCH_MOVIE_DETAILS';

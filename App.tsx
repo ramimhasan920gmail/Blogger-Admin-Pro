@@ -6,7 +6,7 @@ import { BloggerService } from './services/bloggerService';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import PostEditor from './components/PostEditor';
-import { LogIn, Loader2, Settings, ShieldAlert, Key, Save, AlertCircle, Bot, Zap, Film } from 'lucide-react';
+import { LogIn, Loader2, Settings, ShieldAlert, Key, Save, AlertCircle, Bot, Zap, Film, Database } from 'lucide-react';
 
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>({
@@ -19,6 +19,7 @@ const App: React.FC = () => {
     openAiApiKey: localStorage.getItem('app_openai_api_key') || '',
     grokApiKey: localStorage.getItem('app_grok_api_key') || '',
     tmdbApiKey: localStorage.getItem('app_tmdb_api_key') || '',
+    omdbApiKey: localStorage.getItem('app_omdb_api_key') || '',
   });
 
   const [view, setView] = useState<'DASHBOARD' | 'EDITOR' | 'SETTINGS'>('DASHBOARD');
@@ -89,6 +90,7 @@ const App: React.FC = () => {
     localStorage.setItem('app_openai_api_key', settings.openAiApiKey?.trim() || '');
     localStorage.setItem('app_grok_api_key', settings.grokApiKey?.trim() || '');
     localStorage.setItem('app_tmdb_api_key', settings.tmdbApiKey?.trim() || '');
+    localStorage.setItem('app_omdb_api_key', settings.omdbApiKey?.trim() || '');
     setSettingsStatus('success');
     setTimeout(() => { setSettingsStatus('idle'); setView('DASHBOARD'); }, 1500);
   };
@@ -134,20 +136,37 @@ const App: React.FC = () => {
                 <p className="text-sm text-orange-800 font-medium">Gemini (Primary) is managed by the system. No key required.</p>
               </div>
               
-              {/* TMDB API Key */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                  <Film className="w-4 h-4 mr-2 text-blue-500" /> 
-                  TMDB API Key (Best for Movie Data)
-                </label>
-                <input 
-                  type="text" 
-                  value={settings.tmdbApiKey} 
-                  onChange={(e) => setSettings({...settings, tmdbApiKey: e.target.value})} 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-xs focus:ring-2 focus:ring-blue-500 transition-all" 
-                  placeholder="Paste TMDB API Key (v3 auth)..." 
-                />
-                <p className="text-[10px] text-slate-400 mt-1 italic">Get one at themoviedb.org/settings/api</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* TMDB API Key */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                    <Film className="w-4 h-4 mr-2 text-blue-500" /> 
+                    TMDB API Key
+                  </label>
+                  <input 
+                    type="text" 
+                    value={settings.tmdbApiKey} 
+                    onChange={(e) => setSettings({...settings, tmdbApiKey: e.target.value})} 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-xs focus:ring-2 focus:ring-blue-500 transition-all" 
+                    placeholder="TMDB Key..." 
+                  />
+                </div>
+
+                {/* OMDB/IMDb API Key */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                    <Database className="w-4 h-4 mr-2 text-yellow-500" /> 
+                    OMDB (IMDb) Key
+                  </label>
+                  <input 
+                    type="text" 
+                    value={settings.omdbApiKey} 
+                    onChange={(e) => setSettings({...settings, omdbApiKey: e.target.value})} 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-xs focus:ring-2 focus:ring-yellow-500 transition-all" 
+                    placeholder="OMDB Key..." 
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 italic">Get one at omdbapi.com/apikey.aspx</p>
+                </div>
               </div>
 
               <div>
