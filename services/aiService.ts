@@ -3,15 +3,19 @@ import { GoogleGenAI } from "@google/genai";
 import { AISuggestionType } from "../types";
 
 export class AIService {
+  private apiKey: string;
+
+  constructor(userApiKey?: string) {
+    // Priority: 1. User provided key from settings, 2. Env variable
+    this.apiKey = userApiKey || process.env.API_KEY || '';
+  }
+
   async getSuggestion(type: AISuggestionType, context: { title: string; content: string }) {
-    // Obtaining the API Key exclusively from process.env.API_KEY as per guidelines
-    const apiKey = process.env.API_KEY;
-    
-    if (!apiKey) {
-      console.warn("API_KEY environment variable is not set. AI features might fail.");
+    if (!this.apiKey) {
+      throw new Error("Gemini API Key missing. Please set it in App Settings.");
     }
 
-    const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+    const ai = new GoogleGenAI({ apiKey: this.apiKey });
     const model = 'gemini-3-pro-preview';
     
     let prompt = "";
@@ -46,12 +50,10 @@ export class AIService {
         contents: prompt,
         config: {
           tools,
-          // Only use application/json for the fetch details task
           responseMimeType: type === 'FETCH_MOVIE_DETAILS' ? "application/json" : undefined,
         },
       });
 
-      // Extract grounding metadata if available (for citations)
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       
       return {

@@ -50,4 +50,8 @@ export interface AuthState {
   } | null;
 }
 
+export interface AppSettings {
+  geminiApiKey: string;
+}
+
 export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR' | 'FETCH_MOVIE_DETAILS';

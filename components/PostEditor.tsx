@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BloggerPost, AISuggestionType, MovieTemplateData, DownloadLink } from '../types';
+import { BloggerPost, AISuggestionType, MovieTemplateData, DownloadLink, AppSettings } from '../types';
 import { BloggerService } from '../services/bloggerService';
 import { AIService } from '../services/aiService';
 import RichTextEditor from './RichTextEditor';
@@ -15,9 +15,10 @@ interface PostEditorProps {
   bloggerService: BloggerService;
   postId: string | null;
   onBack: () => void;
+  settings: AppSettings;
 }
 
-const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack }) => {
+const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack, settings }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [labels, setLabels] = useState('');
@@ -44,7 +45,8 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [sources, setSources] = useState<any[]>([]);
 
-  const aiService = new AIService();
+  // Pass user API key to AIService
+  const aiService = new AIService(settings.geminiApiKey);
 
   useEffect(() => {
     if (postId) {
