@@ -6,24 +6,26 @@ export class AIService {
   private apiKey: string;
 
   constructor(userApiKey?: string) {
-    // Trim the API key to remove any accidental newlines or spaces
+    // এপিআই কি-তে কোনো অদৃশ্য স্পেস থাকলে তা রিমুভ করবে
     this.apiKey = (userApiKey || process.env.API_KEY || '').trim();
   }
 
   async getSuggestion(type: AISuggestionType, context: { title: string; content: string }) {
     if (!this.apiKey) {
-      throw new Error("Gemini API Key missing. Please go to Settings and add your API Key.");
+      throw new Error("Gemini API Key পাওয়া যায়নি। সেটিংস থেকে কি (Key) যোগ করুন।");
     }
 
     try {
       const ai = new GoogleGenAI({ apiKey: this.apiKey });
-      // Using gemini-3-flash-preview for better quota availability and speed
-      const model = 'gemini-3-flash-preview';
+      
+      // 'gemini-flash-lite-latest' মডেলটি ফ্রি টায়ারে সবচেয়ে বেশি কোটা দেয়।
+      const modelName = 'gemini-flash-lite-latest';
       
       let prompt = "";
       let tools: any[] | undefined = undefined;
 
       if (type === 'FETCH_MOVIE_DETAILS') {
+        // গুগল সার্চ গ্রাউন্ডিং যোগ করা হয়েছে সঠিক তথ্যের জন্য
         tools = [{ googleSearch: {} }];
         prompt = `Search the web and provide detailed information for the movie or series: "${context.title}". 
         I need the response strictly in JSON format with these exact keys: 
@@ -47,10 +49,11 @@ export class AIService {
       }
 
       const response = await ai.models.generateContent({
-        model,
+        model: modelName,
         contents: prompt,
         config: {
           tools,
+          // মুভি ডিটেইলসের জন্য JSON রেসপন্স নিশ্চিত করা হয়েছে
           responseMimeType: type === 'FETCH_MOVIE_DETAILS' ? "application/json" : undefined,
         },
       });
@@ -64,17 +67,17 @@ export class AIService {
     } catch (error: any) {
       console.error("Gemini API Error details:", error);
       
-      // Handle Quota Exceeded error (429)
+      // কোটা শেষ হয়ে গেলে সহজ বাংলায় এরর মেসেজ
       if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
-        throw new Error("AI Quota Exceeded. Please wait a few seconds or try a different API Key.");
+        throw new Error("আপনার ফ্রি এপিআই কোটা (Quota) সাময়িকভাবে শেষ। দয়া করে ১ মিনিট অপেক্ষা করে আবার চেষ্টা করুন।");
       }
       
-      // Catching the specific header error
-      if (error.message?.includes('Headers') || error.message?.includes('ISO-8859-1')) {
-        throw new Error("Invalid API Key format. Please re-copy your key and ensure no spaces are added.");
+      // এপিআই কি ভুল থাকলে
+      if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('Headers') || error.message?.includes('ISO-8859-1')) {
+        throw new Error("আপনার এপিআই কি (API Key) সঠিক নয়। সেটিংস থেকে পুনরায় সঠিক কি দিন।");
       }
 
-      throw new Error(error.message || "Failed to communicate with Gemini AI.");
+      throw new Error(error.message || "এআই এর সাথে যোগাযোগ করতে সমস্যা হচ্ছে।");
     }
   }
 }
