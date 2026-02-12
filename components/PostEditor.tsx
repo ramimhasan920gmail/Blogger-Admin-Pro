@@ -96,6 +96,23 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
     }
   }, [postId, bloggerService]);
 
+  const extractJsonFromText = (text: string) => {
+    try {
+      // Remove markdown code blocks if present
+      const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      // Try to find the first '{' and last '}'
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        return JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
+      }
+      return JSON.parse(cleaned);
+    } catch (e) {
+      console.error("JSON extraction error:", e);
+      throw new Error("AI returned invalid data format.");
+    }
+  };
+
   const handleAutoFill = async () => {
     if (!title) {
       setError("Please enter a movie name first.");
@@ -105,7 +122,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
     setError(null);
     try {
       const result = await aiService.getSuggestion('FETCH_MOVIE_DETAILS', { title, content: '' });
-      const data = JSON.parse(result.text);
+      const data = extractJsonFromText(result.text);
       setMovieData(prev => ({
         ...prev,
         genre: data.genre || prev.genre,

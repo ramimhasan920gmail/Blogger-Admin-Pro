@@ -18,20 +18,20 @@ export class AIService {
     try {
       const ai = new GoogleGenAI({ apiKey: this.apiKey });
       
-      // 'gemini-flash-lite-latest' মডেলটি ফ্রি টায়ারে সবচেয়ে বেশি কোটা দেয়।
-      const modelName = 'gemini-flash-lite-latest';
+      // 'gemini-3-flash-preview' সার্চ টুল এবং কোটার জন্য বেশি স্থিতিশীল
+      const modelName = 'gemini-3-flash-preview';
       
       let prompt = "";
       let tools: any[] | undefined = undefined;
 
       if (type === 'FETCH_MOVIE_DETAILS') {
-        // গুগল সার্চ গ্রাউন্ডিং যোগ করা হয়েছে সঠিক তথ্যের জন্য
+        // গুগল সার্চ গ্রাউন্ডিং যোগ করা হয়েছে
         tools = [{ googleSearch: {} }];
         prompt = `Search the web and provide detailed information for the movie or series: "${context.title}". 
         I need the response strictly in JSON format with these exact keys: 
         "genre", "imdb", "plot", "director", "cast", "budget", "releaseDate", "language".
         Ensure the "plot" is about 3-4 sentences. "cast" should be a list of main actors.
-        If some info is not found, use "N/A". Return ONLY the JSON object.`;
+        If some info is not found, use "N/A". Return ONLY the JSON object string.`;
       } else {
         switch (type) {
           case 'OPTIMIZE_TITLE':
@@ -53,8 +53,9 @@ export class AIService {
         contents: prompt,
         config: {
           tools,
-          // মুভি ডিটেইলসের জন্য JSON রেসপন্স নিশ্চিত করা হয়েছে
-          responseMimeType: type === 'FETCH_MOVIE_DETAILS' ? "application/json" : undefined,
+          // ক্রুশিয়াল: টুল ব্যবহার করলে responseMimeType: 'application/json' ব্যবহার করা যাবে না।
+          // তাই আমরা এখানে শর্ত সাপেক্ষে এটি দিচ্ছি।
+          responseMimeType: (type === 'FETCH_MOVIE_DETAILS' || tools) ? undefined : "application/json",
         },
       });
 
@@ -67,13 +68,15 @@ export class AIService {
     } catch (error: any) {
       console.error("Gemini API Error details:", error);
       
-      // কোটা শেষ হয়ে গেলে সহজ বাংলায় এরর মেসেজ
       if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
         throw new Error("আপনার ফ্রি এপিআই কোটা (Quota) সাময়িকভাবে শেষ। দয়া করে ১ মিনিট অপেক্ষা করে আবার চেষ্টা করুন।");
       }
       
-      // এপিআই কি ভুল থাকলে
-      if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('Headers') || error.message?.includes('ISO-8859-1')) {
+      if (error.message?.includes('400') && error.message?.includes('mime type')) {
+        throw new Error("এআই সার্ভারে কনফিগারেশন সমস্যা। টুল এবং জেএসন মোড একসাথে কাজ করছে না। ডেভেলপারকে জানান।");
+      }
+
+      if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('Headers')) {
         throw new Error("আপনার এপিআই কি (API Key) সঠিক নয়। সেটিংস থেকে পুনরায় সঠিক কি দিন।");
       }
 
