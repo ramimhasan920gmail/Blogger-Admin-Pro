@@ -1,30 +1,39 @@
 
 export interface BloggerPost {
   id: string;
-  blog: {
-    id: string;
-  };
+  blog: { id: string };
   published?: string;
   updated: string;
   url: string;
-  selfLink: string;
   title: string;
   content: string;
   author: {
-    id: string;
     displayName: string;
-    image: {
-      url: string;
-    };
+    image: { url: string };
   };
   status: 'LIVE' | 'DRAFT' | 'SCHEDULED';
   labels?: string[];
 }
 
+// Added missing interface for Blogger API list responses
 export interface BloggerListResponse {
   kind: string;
   items?: BloggerPost[];
   nextPageToken?: string;
+  prevPageToken?: string;
+}
+
+export interface DownloadLink {
+  label: string;
+  url: string;
+}
+
+export interface MovieTemplateData {
+  posterUrl: string;
+  genre: string;
+  imdb: string;
+  plot: string;
+  downloadLinks: DownloadLink[];
 }
 
 export interface AuthState {
@@ -35,11 +44,6 @@ export interface AuthState {
     email: string;
     picture: string;
   } | null;
-}
-
-export interface Config {
-  clientId: string;
-  blogId: string;
 }
 
 export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR';

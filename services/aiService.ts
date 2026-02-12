@@ -7,7 +7,7 @@ export class AIService {
     const apiKey = process.env.API_KEY;
     
     if (!apiKey) {
-      throw new Error("Gemini API Key is missing. Please set the API_KEY environment variable in your deployment settings.");
+      throw new Error("Gemini API Key missing.");
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -16,37 +16,32 @@ export class AIService {
     let prompt = "";
     switch (type) {
       case 'OPTIMIZE_TITLE':
-        prompt = `Based on this blog post content, suggest 5 catchy and SEO-friendly titles. 
-        Content: ${context.content.substring(0, 2000)}
-        Return only the titles as a bulleted list.`;
+        prompt = `Based on this content, suggest 5 catchy SEO titles for a movie/series blog post. 
+        Content: ${context.content.substring(0, 1000)}
+        Focus on release year and download quality. Return as bulleted list.`;
         break;
       case 'SUMMARIZE':
-        prompt = `Summarize this blog post in 2-3 sentences for a social media preview.
+        prompt = `Write a professional 3-sentence plot summary for a movie blog.
         Title: ${context.title}
-        Content: ${context.content.substring(0, 3000)}`;
-        break;
-      case 'EXPAND':
-        prompt = `Expand the following points into a detailed, professional blog paragraph. 
-        Points: ${context.content}`;
+        Raw Content: ${context.content.substring(0, 2000)}`;
         break;
       case 'FIX_GRAMMAR':
-        prompt = `Fix the grammar and improve the flow of this text while maintaining its meaning.
+        prompt = `Correct the grammar and flow of this movie description:
         Text: ${context.content}`;
         break;
+      default:
+        prompt = `Help me with this blog post: ${context.title}`;
     }
 
     try {
       const response = await ai.models.generateContent({
         model,
         contents: prompt,
-        config: {
-          thinkingConfig: { thinkingBudget: 2000 }
-        }
       });
-      return response.text || "No suggestion could be generated at this time.";
+      return response.text || "No response generated.";
     } catch (error) {
-      console.error("Gemini AI Error:", error);
-      throw new Error("AI assistant failed. Check your API key and connection.");
+      console.error("AI Error:", error);
+      throw new Error("Gemini AI failed.");
     }
   }
 }
