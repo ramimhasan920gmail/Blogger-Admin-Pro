@@ -17,13 +17,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange }) => {
       if (Quill) {
         quillRef.current = new Quill(editorRef.current, {
           theme: 'snow',
+          placeholder: 'Tell your story...',
           modules: {
             toolbar: [
               [{ 'header': [1, 2, 3, false] }],
               ['bold', 'italic', 'underline', 'strike'],
               ['blockquote', 'code-block'],
               [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-              ['link', 'image'],
+              [{ 'color': [] }, { 'background': [] }],
+              ['link', 'image', 'video'],
               ['clean']
             ],
           },
@@ -35,7 +37,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange }) => {
         });
       }
     }
-  }, [onChange]);
+  }, []); // Only init once
 
   useEffect(() => {
     if (quillRef.current && value !== quillRef.current.root.innerHTML) {
@@ -44,8 +46,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange }) => {
   }, [value]);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
-      <div ref={editorRef} />
+    <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">
+      <div ref={editorRef} className="flex-1 overflow-auto" style={{ minHeight: '300px' }} />
     </div>
   );
 };

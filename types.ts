@@ -41,3 +41,5 @@ export interface Config {
   clientId: string;
   blogId: string;
 }
+
+export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR';
