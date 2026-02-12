@@ -8,7 +8,7 @@ import {
   ArrowLeft, Save, CheckCircle, AlertCircle, Sparkles, 
   Wand2, FileJson, Languages, Loader2, X, Film, Image, 
   Star, Type, Link, PlusCircle, MinusCircle, Tags,
-  Users, User, DollarSign, Globe
+  Users, User, DollarSign, Globe, Calendar, Languages as LangIcon
 } from 'lucide-react';
 
 interface PostEditorProps {
@@ -34,6 +34,8 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
     director: '',
     cast: '',
     budget: '',
+    releaseDate: '',
+    language: '',
     downloadLinks: [{ label: 'Download', url: '' }]
   });
 
@@ -63,6 +65,8 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
             const director = doc.querySelector('.movie-director')?.textContent || '';
             const cast = doc.querySelector('.movie-cast')?.textContent || '';
             const budget = doc.querySelector('.movie-budget')?.textContent || '';
+            const releaseDate = doc.querySelector('.movie-release')?.textContent || '';
+            const language = doc.querySelector('.movie-language')?.textContent || '';
             
             const links: DownloadLink[] = [];
             doc.querySelectorAll('.seasons li').forEach(li => {
@@ -76,7 +80,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
             });
 
             setMovieData({
-              posterUrl: poster, genre, imdb, plot, director, cast, budget,
+              posterUrl: poster, genre, imdb, plot, director, cast, budget, releaseDate, language,
               downloadLinks: links.length > 0 ? links : [{ label: 'Download', url: '' }]
             });
           }
@@ -107,7 +111,9 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
         plot: data.plot || prev.plot,
         director: data.director || prev.director,
         cast: data.cast || prev.cast,
-        budget: data.budget || prev.budget
+        budget: data.budget || prev.budget,
+        releaseDate: data.releaseDate || prev.releaseDate,
+        language: data.language || prev.language
       }));
       setSources(result.grounding);
       setSuccess(true);
@@ -148,7 +154,9 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
   </div>
   <div class="info-grid">
     <p><b>Genre:</b> <span class="movie-genre">${movieData.genre}</span></p>
-    <p><b>IMDb Rating:</b> <span class="imdb-rating">⭐ ${movieData.imdb}</span></p>
+    <p><b>IMDb:</b> <span class="imdb-rating">⭐ ${movieData.imdb}</span></p>
+    <p><b>Released:</b> <span class="movie-release">${movieData.releaseDate}</span></p>
+    <p><b>Language:</b> <span class="movie-language">${movieData.language}</span></p>
     <p><b>Director:</b> <span class="movie-director">${movieData.director}</span></p>
     <p><b>Budget:</b> <span class="movie-budget">${movieData.budget}</span></p>
   </div>
@@ -198,7 +206,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold flex items-center shadow-md hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-95"
               >
                 {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                Auto-Fill with AI
+                Auto-Fill Details (AI)
               </button>
               <button onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold flex items-center shadow-sm hover:bg-slate-50 transition-all"><Sparkles className="w-4 h-4 mr-2 text-orange-400" /> AI Helper</button>
               <button onClick={() => handleSave(false)} className="px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center"><Save className="w-4 h-4 mr-2" /> Save Draft</button>
@@ -207,71 +215,75 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Form Column */}
             <div className="space-y-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Movie Title (For Searching)</label>
-                  <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-lg" placeholder="e.g., Deadpool & Wolverine (2024)"/>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Movie/Series Title</label>
+                  <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-lg" placeholder="e.g., Inception (2010)"/>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Star className="w-3 h-3 mr-1" /> IMDb Rating</label>
-                    <input type="text" value={movieData.imdb} onChange={(e) => setMovieData({...movieData, imdb: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="8.1"/>
+                    <input type="text" value={movieData.imdb} onChange={(e) => setMovieData({...movieData, imdb: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="8.8"/>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><User className="w-3 h-3 mr-1" /> Director</label>
-                    <input type="text" value={movieData.director} onChange={(e) => setMovieData({...movieData, director: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Shawn Levy"/>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Calendar className="w-3 h-3 mr-1" /> Release Date</label>
+                    <input type="text" value={movieData.releaseDate} onChange={(e) => setMovieData({...movieData, releaseDate: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="July 16, 2010"/>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Users className="w-3 h-3 mr-1" /> Cast / Actors</label>
-                  <input type="text" value={movieData.cast} onChange={(e) => setMovieData({...movieData, cast: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Ryan Reynolds, Hugh Jackman..."/>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Genre</label>
-                    <input type="text" value={movieData.genre} onChange={(e) => setMovieData({...movieData, genre: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Action, Comedy"/>
+                    <input type="text" value={movieData.genre} onChange={(e) => setMovieData({...movieData, genre: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Sci-Fi, Action"/>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><LangIcon className="w-3 h-3 mr-1" /> Language</label>
+                    <input type="text" value={movieData.language} onChange={(e) => setMovieData({...movieData, language: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="English"/>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><User className="w-3 h-3 mr-1" /> Director</label>
+                    <input type="text" value={movieData.director} onChange={(e) => setMovieData({...movieData, director: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Christopher Nolan"/>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><DollarSign className="w-3 h-3 mr-1" /> Budget</label>
-                    <input type="text" value={movieData.budget} onChange={(e) => setMovieData({...movieData, budget: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="$200 Million"/>
+                    <input type="text" value={movieData.budget} onChange={(e) => setMovieData({...movieData, budget: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="$160 Million"/>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Poster Image URL</label>
-                  <input type="text" value={movieData.posterUrl} onChange={(e) => setMovieData({...movieData, posterUrl: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Paste image link here..."/>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Users className="w-3 h-3 mr-1" /> Cast</label>
+                  <input type="text" value={movieData.cast} onChange={(e) => setMovieData({...movieData, cast: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Leonardo DiCaprio, Joseph Gordon-Levitt..."/>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Plot / Description</label>
-                  <textarea value={movieData.plot} onChange={(e) => setMovieData({...movieData, plot: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none resize-none h-32 text-sm" placeholder="Movie storyline..."></textarea>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Poster URL</label>
+                  <input type="text" value={movieData.posterUrl} onChange={(e) => setMovieData({...movieData, posterUrl: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="https://..."/>
                 </div>
 
                 <div>
-                   <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Tags className="w-3 h-3 mr-1" /> Labels</label>
-                   <input type="text" value={labels} onChange={(e) => setLabels(e.target.value)} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Action, 2024, Marvel..."/>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Plot Summary</label>
+                  <textarea value={movieData.plot} onChange={(e) => setMovieData({...movieData, plot: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none resize-none h-24 text-sm" placeholder="A thief who steals corporate secrets..."></textarea>
                 </div>
               </div>
             </div>
 
-            {/* Links Column */}
             <div className="space-y-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
                    <div className="flex items-center space-x-2 text-slate-400"><Link className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Download Buttons</span></div>
-                   <button onClick={() => setMovieData({...movieData, downloadLinks: [...movieData.downloadLinks, { label: 'Download', url: '' }]})} className="text-orange-600 hover:text-orange-700 flex items-center text-xs font-bold"><PlusCircle className="w-4 h-4 mr-1" /> Add Button</button>
+                   <button onClick={() => setMovieData({...movieData, downloadLinks: [...movieData.downloadLinks, { label: 'Download', url: '' }]})} className="text-orange-600 hover:text-orange-700 flex items-center text-xs font-bold"><PlusCircle className="w-4 h-4 mr-1" /> Add Link</button>
                 </div>
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[400px] pr-2">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] pr-2">
                   {movieData.downloadLinks.map((link, index) => (
                     <div key={index} className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100 relative group">
                       <div className="flex gap-2">
-                        <input type="text" value={link.label} onChange={(e) => {const n=[...movieData.downloadLinks]; n[index].label=e.target.value; setMovieData({...movieData, downloadLinks:n})}} className="w-1/3 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none" placeholder="Btn Text"/>
-                        <input type="text" value={link.url} onChange={(e) => {const n=[...movieData.downloadLinks]; n[index].url=e.target.value; setMovieData({...movieData, downloadLinks:n})}} className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none" placeholder="Link URL"/>
+                        <input type="text" value={link.label} onChange={(e) => {const n=[...movieData.downloadLinks]; n[index].label=e.target.value; setMovieData({...movieData, downloadLinks:n})}} className="w-1/3 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none" placeholder="Button Label"/>
+                        <input type="text" value={link.url} onChange={(e) => {const n=[...movieData.downloadLinks]; n[index].url=e.target.value; setMovieData({...movieData, downloadLinks:n})}} className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none" placeholder="Direct Link URL"/>
                       </div>
                       <button onClick={() => setMovieData({...movieData, downloadLinks: movieData.downloadLinks.filter((_,i)=>i!==index)})} className="absolute -right-2 -top-2 bg-white text-red-500 shadow-sm rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><MinusCircle className="w-4 h-4" /></button>
                     </div>
@@ -279,7 +291,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
                 </div>
                 {sources.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-slate-50">
-                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-2 flex items-center"><Globe className="w-3 h-3 mr-1" /> Search Sources</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-2 flex items-center"><Globe className="w-3 h-3 mr-1" /> Data Sources (Grounding)</p>
                     <div className="flex flex-col gap-1">
                       {sources.map((src, i) => src.web && (
                         <a key={i} href={src.web.uri} target="_blank" className="text-[10px] text-blue-500 hover:underline truncate">{src.web.title || src.web.uri}</a>
@@ -304,7 +316,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
         <div className="flex flex-col h-full p-6">
           <div className="flex items-center justify-between mb-8"><h3 className="text-lg font-bold text-slate-800 flex items-center"><Sparkles className="w-5 h-5 text-orange-500 mr-2" /> AI Assistant</h3><button onClick={() => setIsAiSidebarOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button></div>
           <div className="space-y-3 mb-8">
-            <button onClick={() => handleAiAction('OPTIMIZE_TITLE')} className="w-full flex items-center p-3 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-orange-50 rounded-xl transition-all"><Wand2 className="w-4 h-4 mr-3 text-orange-400" /> SEO titles</button>
+            <button onClick={() => handleAiAction('OPTIMIZE_TITLE')} className="w-full flex items-center p-3 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-orange-50 rounded-xl transition-all"><Wand2 className="w-4 h-4 mr-3 text-orange-400" /> Optimize Title</button>
             <button onClick={() => handleAiAction('FIX_GRAMMAR')} className="w-full flex items-center p-3 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-orange-50 rounded-xl transition-all"><Languages className="w-4 h-4 mr-3 text-orange-400" /> Fix Grammar</button>
           </div>
           <div className="flex-1 bg-slate-50 rounded-2xl p-4 overflow-y-auto border border-slate-100 relative">

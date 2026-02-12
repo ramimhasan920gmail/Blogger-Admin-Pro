@@ -35,6 +35,8 @@ export interface MovieTemplateData {
   director: string;
   cast: string;
   budget: string;
+  releaseDate: string;
+  language: string;
   downloadLinks: DownloadLink[];
 }
 
