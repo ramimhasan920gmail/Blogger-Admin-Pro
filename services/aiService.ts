@@ -4,8 +4,13 @@ import { AISuggestionType } from "../types";
 
 export class AIService {
   async getSuggestion(type: AISuggestionType, context: { title: string; content: string }) {
-    // Initializing GenAI inside the method to ensure it uses the latest process.env values
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("Gemini API Key is missing. Please set the API_KEY environment variable in your deployment settings.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const model = 'gemini-3-pro-preview';
     
     let prompt = "";
@@ -38,11 +43,10 @@ export class AIService {
           thinkingConfig: { thinkingBudget: 2000 }
         }
       });
-      // response.text is a getter property, not a function.
       return response.text || "No suggestion could be generated at this time.";
     } catch (error) {
       console.error("Gemini AI Error:", error);
-      throw new Error("AI assistant encountered an error. Please ensure your API configuration is correct.");
+      throw new Error("AI assistant failed. Check your API key and connection.");
     }
   }
 }
