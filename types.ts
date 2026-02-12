@@ -15,7 +15,6 @@ export interface BloggerPost {
   labels?: string[];
 }
 
-// Added missing interface for Blogger API list responses
 export interface BloggerListResponse {
   kind: string;
   items?: BloggerPost[];
@@ -33,6 +32,9 @@ export interface MovieTemplateData {
   genre: string;
   imdb: string;
   plot: string;
+  director: string;
+  cast: string;
+  budget: string;
   downloadLinks: DownloadLink[];
 }
 
@@ -46,4 +48,4 @@ export interface AuthState {
   } | null;
 }
 
-export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR';
+export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR' | 'FETCH_MOVIE_DETAILS';

@@ -1,5 +1,5 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { AISuggestionType } from "../types";
 
 export class AIService {
@@ -14,34 +14,51 @@ export class AIService {
     const model = 'gemini-3-pro-preview';
     
     let prompt = "";
-    switch (type) {
-      case 'OPTIMIZE_TITLE':
-        prompt = `Based on this content, suggest 5 catchy SEO titles for a movie/series blog post. 
-        Content: ${context.content.substring(0, 1000)}
-        Focus on release year and download quality. Return as bulleted list.`;
-        break;
-      case 'SUMMARIZE':
-        prompt = `Write a professional 3-sentence plot summary for a movie blog.
-        Title: ${context.title}
-        Raw Content: ${context.content.substring(0, 2000)}`;
-        break;
-      case 'FIX_GRAMMAR':
-        prompt = `Correct the grammar and flow of this movie description:
-        Text: ${context.content}`;
-        break;
-      default:
-        prompt = `Help me with this blog post: ${context.title}`;
+    let tools: any[] | undefined = undefined;
+
+    if (type === 'FETCH_MOVIE_DETAILS') {
+      tools = [{ googleSearch: {} }];
+      prompt = `Search the web and provide detailed information for the movie or series: "${context.title}". 
+      I need the response strictly in JSON format with these exact keys: 
+      "genre", "imdb", "plot", "director", "cast", "budget".
+      Ensure the "plot" is about 3-4 sentences. "cast" should be a list of main actors.
+      If some info is not found, use "N/A".`;
+    } else {
+      switch (type) {
+        case 'OPTIMIZE_TITLE':
+          prompt = `Suggest 5 catchy SEO titles for: ${context.content.substring(0, 500)}`;
+          break;
+        case 'SUMMARIZE':
+          prompt = `Write a plot summary for: ${context.title}`;
+          break;
+        case 'FIX_GRAMMAR':
+          prompt = `Fix grammar: ${context.content}`;
+          break;
+        default:
+          prompt = `Help with: ${context.title}`;
+      }
     }
 
     try {
       const response = await ai.models.generateContent({
         model,
         contents: prompt,
+        config: {
+          tools,
+          responseMimeType: type === 'FETCH_MOVIE_DETAILS' ? "application/json" : undefined,
+        },
       });
-      return response.text || "No response generated.";
+
+      // Handle grounding metadata for search usage
+      const groundingLinks = response.candidates?.[0]?.groundingMetadata?.searchEntryPoint?.html;
+      
+      return {
+        text: response.text || "{}",
+        grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+      };
     } catch (error) {
       console.error("AI Error:", error);
-      throw new Error("Gemini AI failed.");
+      throw new Error("Gemini AI failed to fetch data.");
     }
   }
 }
