@@ -3,13 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 import { AISuggestionType } from "../types";
 
 export class AIService {
-  private ai: any;
-
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  }
-
   async getSuggestion(type: AISuggestionType, context: { title: string; content: string }) {
+    // Initializing GenAI inside the method to ensure it uses the latest process.env values
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const model = 'gemini-3-pro-preview';
     
     let prompt = "";
@@ -35,17 +31,18 @@ export class AIService {
     }
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model,
         contents: prompt,
         config: {
           thinkingConfig: { thinkingBudget: 2000 }
         }
       });
-      return response.text;
+      // response.text is a getter property, not a function.
+      return response.text || "No suggestion could be generated at this time.";
     } catch (error) {
       console.error("Gemini AI Error:", error);
-      throw new Error("AI assistant failed to generate a response.");
+      throw new Error("AI assistant encountered an error. Please ensure your API configuration is correct.");
     }
   }
 }
