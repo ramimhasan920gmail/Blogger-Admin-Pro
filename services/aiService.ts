@@ -12,28 +12,43 @@ export class AIService {
   async getSuggestion(type: AISuggestionType, context: { title: string; content: string }) {
     const errors: string[] = [];
 
-    // Special case for Fetching Movie Details: Try TMDB First as it's the most reliable
-    if (type === 'FETCH_MOVIE_DETAILS' && this.settings.tmdbApiKey) {
-      try {
-        console.log("Attempting with TMDB API...");
-        const tmdbData = await this.callTMDB(context.title);
-        if (tmdbData) return { text: JSON.stringify(tmdbData), grounding: [] };
-      } catch (e: any) {
-        console.warn("TMDB failed:", e.message);
-        errors.push(`TMDB: ${e.message}`);
+    // --- STEP 1: TMDB PRIORITY FOR MOVIE DETAILS ---
+    if (type === 'FETCH_MOVIE_DETAILS') {
+      if (this.settings.tmdbApiKey) {
+        try {
+          console.log("Searching TMDB for:", context.title);
+          const tmdbData = await this.callTMDB(context.title);
+          if (tmdbData) {
+            console.log("TMDB Data Found!");
+            return { text: JSON.stringify(tmdbData), grounding: [] };
+          }
+          errors.push("TMDB: Movie not found in database.");
+        } catch (e: any) {
+          console.warn("TMDB error:", e.message);
+          errors.push(`TMDB Error: ${e.message}`);
+        }
+      } else {
+        errors.push("TMDB: API Key not configured in settings.");
       }
     }
 
+    // --- STEP 2: AI FALLBACKS ---
+    
     // 1. Try Gemini (Primary AI)
-    try {
-      console.log("Attempting with Gemini (System API)...");
-      return await this.callGemini(type, context);
-    } catch (e: any) {
-      console.warn("Gemini failed:", e.message);
-      errors.push(`Gemini: ${e.message}`);
+    // Only try if the system-provided API_KEY exists
+    if (process.env.API_KEY) {
+      try {
+        console.log("Attempting with Gemini...");
+        return await this.callGemini(type, context);
+      } catch (e: any) {
+        console.warn("Gemini failed:", e.message);
+        errors.push(`Gemini: ${e.message}`);
+      }
+    } else {
+      errors.push("Gemini: System API key (API_KEY) is missing.");
     }
 
-    // 2. Try OpenAI (ChatGPT) as fallback
+    // 2. Try OpenAI (ChatGPT)
     if (this.settings.openAiApiKey) {
       try {
         console.log("Attempting with OpenAI fallback...");
@@ -44,7 +59,7 @@ export class AIService {
       }
     }
 
-    // 3. Try Grok (X.AI) as fallback
+    // 3. Try Grok (X.AI)
     if (this.settings.grokApiKey) {
       try {
         console.log("Attempting with Grok fallback...");
@@ -55,9 +70,10 @@ export class AIService {
       }
     }
 
+    // --- FINAL ERROR REPORTING ---
     const errorMsg = errors.length > 0 
-      ? `সবগুলো এআই ও ডাটা প্রোভাইডার ব্যর্থ হয়েছে:\n${errors.join('\n')}`
-      : "কোনো এপিআই কনফিগার করা নেই।";
+      ? `সবগুলো মাধ্যম ব্যর্থ হয়েছে:\n${errors.join('\n')}`
+      : "কোনো এপিআই (TMDB বা AI) কনফিগার করা নেই।";
       
     throw new Error(errorMsg);
   }
@@ -66,31 +82,38 @@ export class AIService {
     const apiKey = this.settings.tmdbApiKey;
     if (!apiKey) return null;
 
+    // Remove year from title if user included it in brackets like (2024) to improve search accuracy
+    const cleanTitle = title.replace(/\(\d{4}\)/g, '').trim();
+
     // 1. Search for the movie/tv show
-    const searchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(title)}&language=en-US`;
+    const searchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}&language=en-US`;
     const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) throw new Error("TMDB Search Error");
+    if (!searchRes.ok) {
+      if (searchRes.status === 401) throw new Error("Invalid TMDB API Key.");
+      throw new Error(`TMDB API returned ${searchRes.status}`);
+    }
     const searchData = await searchRes.json();
 
     if (!searchData.results || searchData.results.length === 0) {
-      return null; // Not found on TMDB
+      return null; 
     }
 
-    const firstResult = searchData.results[0];
-    const id = firstResult.id;
-    const type = firstResult.media_type; // 'movie' or 'tv'
+    // Prioritize movies over TV shows in search results if multiple results found
+    let result = searchData.results.find((r: any) => r.media_type === 'movie') || searchData.results[0];
+    const id = result.id;
+    const mediaType = result.media_type === 'person' ? 'movie' : (result.media_type || 'movie');
 
     // 2. Get detailed info including credits
-    const detailsUrl = `https://api.themoviedb.org/3/${type}/${id}?api_key=${apiKey}&append_to_response=credits,images`;
+    const detailsUrl = `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${apiKey}&append_to_response=credits`;
     const detailsRes = await fetch(detailsUrl);
-    if (!detailsRes.ok) throw new Error("TMDB Details Error");
+    if (!detailsRes.ok) return null;
     const details = await detailsRes.json();
 
     // Map TMDB data to our MovieTemplateData format
     return {
       genre: (details.genres || []).map((g: any) => g.name).join(', '),
       imdb: details.vote_average ? details.vote_average.toFixed(1) : "N/A",
-      plot: details.overview || "",
+      plot: details.overview || "No plot summary available.",
       director: details.credits?.crew?.find((c: any) => c.job === 'Director')?.name || "N/A",
       cast: (details.credits?.cast || []).slice(0, 5).map((c: any) => c.name).join(', '),
       budget: details.budget ? `$${(details.budget / 1000000).toFixed(1)} Million` : "N/A",
@@ -107,6 +130,7 @@ export class AIService {
     let prompt = this.getPrompt(type, context);
     let tools: any[] | undefined = undefined;
 
+    // Use Google Search grounding only for movie details to get latest data
     if (type === 'FETCH_MOVIE_DETAILS') {
       tools = [{ googleSearch: {} }];
     }
@@ -116,6 +140,7 @@ export class AIService {
       contents: prompt,
       config: {
         tools,
+        // Disable JSON MIME type if using tools/grounding as it might conflict
         responseMimeType: (type === 'FETCH_MOVIE_DETAILS' || tools) ? undefined : "application/json",
       },
     });
@@ -143,7 +168,7 @@ export class AIService {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `OpenAI status ${response.status}`);
+      throw new Error(err.error?.message || `OpenAI error ${response.status}`);
     }
 
     const data = await response.json();
@@ -171,7 +196,7 @@ export class AIService {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Grok status ${response.status}`);
+      throw new Error(err.error?.message || `Grok error ${response.status}`);
     }
 
     const data = await response.json();
@@ -184,14 +209,14 @@ export class AIService {
   private getPrompt(type: AISuggestionType, context: { title: string; content: string }) {
     if (type === 'FETCH_MOVIE_DETAILS') {
       return `Detailed movie/series info for: "${context.title}". 
-      Return strictly JSON: {"genre": "", "imdb": "", "plot": "", "director": "", "cast": "", "budget": "", "releaseDate": "", "language": ""}. 
-      Ensure "plot" is 3-4 sentences. "cast" as comma-separated string. No markdown formatting.`;
+      Return strictly JSON: {"genre": "", "imdb": "", "plot": "", "director": "", "cast": "", "budget": "", "releaseDate": "", "language": "", "posterUrl": ""}. 
+      Ensure "plot" is 3-4 sentences. "cast" as comma-separated string. Use a real movie poster URL if found on web.`;
     }
     
     switch (type) {
-      case 'OPTIMIZE_TITLE': return `5 SEO titles for: ${context.content.substring(0, 500)}`;
-      case 'SUMMARIZE': return `Short plot for: ${context.title}`;
-      case 'FIX_GRAMMAR': return `Fix grammar: ${context.content}`;
+      case 'OPTIMIZE_TITLE': return `Suggest 5 catchy SEO titles for this movie post: ${context.content.substring(0, 500)}`;
+      case 'SUMMARIZE': return `Write a short interesting plot for: ${context.title}`;
+      case 'FIX_GRAMMAR': return `Fix the grammar and spelling while keeping the movie tone: ${context.content}`;
       default: return `Help with movie content: ${context.title}`;
     }
   }
