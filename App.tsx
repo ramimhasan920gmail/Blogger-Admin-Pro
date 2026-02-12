@@ -6,7 +6,7 @@ import { BloggerService } from './services/bloggerService';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import PostEditor from './components/PostEditor';
-import { LogIn, AlertTriangle, Loader2, Copy, Check, Settings, ShieldAlert, Info, Key, Save } from 'lucide-react';
+import { LogIn, AlertTriangle, Loader2, Copy, Check, Settings, ShieldAlert, Info, Key, Save, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>({
@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [tokenClient, setTokenClient] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [loginError, setLoginError] = useState<{title: string, msg: string} | null>(null);
+  const [settingsStatus, setSettingsStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [copied, setCopied] = useState(false);
 
   const copyOrigin = () => {
@@ -42,7 +43,7 @@ const App: React.FC = () => {
       try {
         await service.verifyBlogAccess();
       } catch (e: any) {
-        throw new Error(`Blogger API verify failed: ${e.message}. Is the Blogger API enabled in Google Console?`);
+        throw new Error(`Blogger API verify failed: ${e.message}`);
       }
 
       const expiresAt = Date.now() + expiresIn * 1000;
@@ -81,20 +82,14 @@ const App: React.FC = () => {
             callback: (tokenResponse: any) => {
               if (tokenResponse.error) {
                 setLoginError({
-                  title: `Google Auth Error: ${tokenResponse.error}`,
-                  msg: tokenResponse.error_description || "Check your Authorized JavaScript origins."
+                  title: `Google Auth Error`,
+                  msg: tokenResponse.error_description || "Authentication failed."
                 });
                 return;
               }
               if (tokenResponse.access_token) {
                 completeLogin(tokenResponse.access_token, tokenResponse.expires_in);
               }
-            },
-            error_callback: (err: any) => {
-              setLoginError({
-                title: "GSI Client Error",
-                msg: err.message || "Could not initialize Google Login."
-              });
             }
           });
           setTokenClient(client);
@@ -118,29 +113,31 @@ const App: React.FC = () => {
   const handleLogin = () => {
     setLoginError(null);
     if (tokenClient) {
-      try {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-      } catch (e) {
-        setLoginError({
-          title: "Popup Blocked",
-          msg: "Please allow popups for this site to sign in."
-        });
-      }
+      tokenClient.requestAccessToken({ prompt: 'consent' });
     }
   };
 
   const handleLogout = () => {
     setAuth({ accessToken: null, expiresAt: null, user: null });
-    localStorage.removeItem('blogger_access_token');
-    localStorage.removeItem('blogger_expires_at');
-    localStorage.removeItem('blogger_user');
+    localStorage.clear();
+    window.location.reload();
   };
 
-  const handleSaveSettings = (newSettings: AppSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem('app_gemini_api_key', newSettings.geminiApiKey);
-    alert('Settings saved successfully!');
-    setView('DASHBOARD');
+  const handleSaveSettings = () => {
+    const trimmedKey = settings.geminiApiKey.trim();
+    if (!trimmedKey) {
+      setSettingsStatus('error');
+      return;
+    }
+    
+    localStorage.setItem('app_gemini_api_key', trimmedKey);
+    setSettings({ ...settings, geminiApiKey: trimmedKey });
+    setSettingsStatus('success');
+    
+    setTimeout(() => {
+      setSettingsStatus('idle');
+      setView('DASHBOARD');
+    }, 1500);
   };
 
   const isTokenExpired = auth.expiresAt ? Date.now() > auth.expiresAt : true;
@@ -174,26 +171,6 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 )}
-
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
-                  <div className="flex items-start">
-                    <Info className="w-4 h-4 text-orange-500 mt-0.5 mr-2 flex-shrink-0" />
-                    <div className="text-[11px] text-slate-600">
-                      <p className="font-bold text-slate-800">Quick Check:</p>
-                      <ul className="list-disc ml-4 mt-1 space-y-1">
-                        <li>Ensure Blogger API is enabled in Google Cloud.</li>
-                        <li>Authorized Javascript Origin:</li>
-                      </ul>
-                      <div className="mt-2 flex items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-                        <code className="flex-1 truncate font-mono text-[10px] text-slate-500">{window.location.origin}</code>
-                        <button onClick={copyOrigin} className="ml-2 p-1 hover:bg-slate-100 rounded-md transition-colors">
-                          {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 <button
                   onClick={handleLogin}
                   className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg shadow-orange-100 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 focus:ring-2 focus:ring-orange-500 transition-all active:scale-95"
@@ -240,40 +217,61 @@ const App: React.FC = () => {
           <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
             <div className="p-8 bg-slate-900 text-white">
               <h2 className="text-2xl font-bold flex items-center"><Settings className="w-6 h-6 mr-3 text-orange-400" /> App Settings</h2>
-              <p className="text-slate-400 text-sm mt-2">Configure your API connections and preferences.</p>
+              <p className="text-slate-400 text-sm mt-2">Manage your AI API keys and application preferences.</p>
             </div>
             <div className="p-8 space-y-6">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
                   <Key className="w-4 h-4 mr-2 text-orange-500" /> 
-                  Google AI Studio API Key (Gemini)
+                  Gemini AI API Key
                 </label>
-                <input 
-                  type="password"
-                  value={settings.geminiApiKey}
-                  onChange={(e) => setSettings({...settings, geminiApiKey: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-mono text-sm"
-                  placeholder="Paste your AIzaSy... key here"
-                />
-                <p className="mt-3 text-xs text-slate-400 leading-relaxed italic">
-                  * This key is required for movie auto-fill and AI optimization features. It is stored safely in your browser.
-                </p>
+                <div className="relative">
+                   <input 
+                    type="text"
+                    value={settings.geminiApiKey}
+                    onChange={(e) => {
+                      setSettings({...settings, geminiApiKey: e.target.value});
+                      setSettingsStatus('idle');
+                    }}
+                    className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-mono text-sm ${
+                      settingsStatus === 'error' ? 'border-red-500 bg-red-50' : 'border-slate-200'
+                    }`}
+                    placeholder="Enter your Gemini API Key..."
+                  />
+                  {settingsStatus === 'success' && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                      <Check className="w-5 h-5" />
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                  <p className="text-xs text-orange-800 leading-relaxed">
+                    <span className="font-bold">How to get a key?</span> Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline font-bold">Google AI Studio</a>, create a free API key, and paste it here. This key is used for movie data fetching and SEO optimization.
+                  </p>
+                </div>
               </div>
               
               <div className="pt-4 flex gap-3">
                 <button
-                  onClick={() => handleSaveSettings(settings)}
-                  className="flex-1 flex items-center justify-center py-3 px-6 bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all active:scale-95"
+                  onClick={handleSaveSettings}
+                  disabled={settingsStatus === 'success'}
+                  className="flex-1 flex items-center justify-center py-3 px-6 bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  <Save className="w-5 h-5 mr-2" /> Save Settings
+                  {settingsStatus === 'success' ? 'Saved!' : <><Save className="w-5 h-5 mr-2" /> Save Changes</>}
                 </button>
                 <button
                   onClick={() => setView('DASHBOARD')}
                   className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
                 >
-                  Cancel
+                  Back
                 </button>
               </div>
+              
+              {settingsStatus === 'error' && (
+                <p className="text-red-500 text-xs font-bold flex items-center justify-center">
+                  <AlertCircle className="w-4 h-4 mr-1" /> API Key cannot be empty!
+                </p>
+              )}
             </div>
           </div>
         </div>
