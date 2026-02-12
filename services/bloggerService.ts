@@ -49,18 +49,19 @@ export class BloggerService {
     return this.fetchWithAuth(`${BASE_URL}/blogs/${this.blogId}/posts/${postId}`);
   }
 
-  async createPost(title: string, content: string): Promise<BloggerPost> {
+  async createPost(title: string, content: string, labels: string[] = []): Promise<BloggerPost> {
     return this.fetchWithAuth(`${BASE_URL}/blogs/${this.blogId}/posts`, {
       method: 'POST',
       body: JSON.stringify({
         kind: 'blogger#post',
         title,
         content,
+        labels,
       }),
     });
   }
 
-  async updatePost(postId: string, title: string, content: string): Promise<BloggerPost> {
+  async updatePost(postId: string, title: string, content: string, labels: string[] = []): Promise<BloggerPost> {
     return this.fetchWithAuth(`${BASE_URL}/blogs/${this.blogId}/posts/${postId}`, {
       method: 'PUT',
       body: JSON.stringify({
@@ -68,6 +69,7 @@ export class BloggerService {
         id: postId,
         title,
         content,
+        labels,
       }),
     });
   }

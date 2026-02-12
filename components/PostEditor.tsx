@@ -8,7 +8,7 @@ import {
   ArrowLeft, Save, CheckCircle, AlertCircle, Sparkles, 
   Wand2, FileJson, Languages, Loader2, X, Film, Image, 
   Star, Type, Link, PlusCircle, MinusCircle, Tags,
-  Users, User, DollarSign, Globe, Calendar, Languages as LangIcon
+  Users, User, DollarSign, Globe, Calendar, Languages as LangIcon, Hash
 } from 'lucide-react';
 
 interface PostEditorProps {
@@ -18,10 +18,20 @@ interface PostEditorProps {
   settings: AppSettings;
 }
 
+const PREDEFINED_LABELS = [
+  "Bangla Movies", 
+  "Hindi Movies", 
+  "Anime", 
+  "K-Drama", 
+  "Marvel And Dc Movies", 
+  "TV-Series"
+];
+
 const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack, settings }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [labels, setLabels] = useState('');
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  const [customLabels, setCustomLabels] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!postId);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +55,6 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [sources, setSources] = useState<any[]>([]);
 
-  // Pass full settings to AIService for fallback support
   const aiService = new AIService(settings);
 
   useEffect(() => {
@@ -55,7 +64,14 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
           const post = await bloggerService.getPost(postId);
           setTitle(post.title);
           setContent(post.content);
-          setLabels(post.labels?.join(', ') || '');
+          
+          // Separate predefined from custom labels
+          const pLabels = post.labels || [];
+          const predefined = pLabels.filter(l => PREDEFINED_LABELS.includes(l));
+          const custom = pLabels.filter(l => !PREDEFINED_LABELS.includes(l));
+          
+          setSelectedLabels(predefined);
+          setCustomLabels(custom.join(', '));
           
           if (post.content.includes('movie-card-vertical')) {
             const parser = new DOMParser();
@@ -95,6 +111,12 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
       fetchPost();
     }
   }, [postId, bloggerService]);
+
+  const toggleLabel = (label: string) => {
+    setSelectedLabels(prev => 
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
 
   const extractJsonFromText = (text: string) => {
     try {
@@ -202,20 +224,45 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
   const handleSave = async (isPublish: boolean = false) => {
     if (!title.trim()) { setError('Title is required'); return; }
     setLoading(true); setError(null); setSuccess(false);
+    
+    // Combine selected quick labels and manual labels
+    const customList = customLabels.split(',').map(l => l.trim()).filter(l => l !== '');
+    const finalLabels = [...new Set([...selectedLabels, ...customList])];
+    
     const finalContent = movieData.posterUrl ? generateMovieHTML() : content;
+    
     try {
-      if (postId) { await bloggerService.updatePost(postId, title, finalContent); } 
-      else { const saved = await bloggerService.createPost(title, finalContent); if (isPublish) await bloggerService.publishPost(saved.id); }
-      setSuccess(true); setTimeout(() => setSuccess(false), 3000); if (!postId) setTimeout(onBack, 1500);
-    } catch (err: any) { setError('Failed to save: ' + err.message); } finally { setLoading(false); }
+      if (postId) { 
+        await bloggerService.updatePost(postId, title, finalContent, finalLabels); 
+      } else { 
+        const saved = await bloggerService.createPost(title, finalContent, finalLabels); 
+        if (isPublish) await bloggerService.publishPost(saved.id); 
+      }
+      setSuccess(true); 
+      setTimeout(() => setSuccess(false), 3000); 
+      if (!postId) setTimeout(onBack, 1500);
+    } catch (err: any) { 
+      setError('Failed to save: ' + err.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
+
+  if (fetching) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-4" />
+        <p className="text-slate-500 font-medium tracking-wide">Loading movie content...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-140px)] gap-6 px-4 pb-4 relative overflow-hidden">
       <div className={`flex-1 overflow-y-auto pr-2 transition-all duration-300 ${isAiSidebarOpen ? 'mr-80' : ''}`}>
         <div className="flex flex-col space-y-6">
           <div className="flex items-center justify-between sticky top-0 bg-slate-50 py-2 z-10">
-            <button onClick={onBack} className="flex items-center text-sm font-bold text-slate-500 hover:text-slate-800"><ArrowLeft className="w-4 h-4 mr-1" /> Back</button>
+            <button onClick={onBack} className="flex items-center text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"><ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard</button>
             <div className="flex space-x-2">
               <button 
                 onClick={handleAutoFill} 
@@ -223,23 +270,51 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold flex items-center shadow-md hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-95"
               >
                 {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                Auto-Fill Details (AI)
+                Auto-Fill (AI)
               </button>
               <button onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold flex items-center shadow-sm hover:bg-slate-50 transition-all"><Sparkles className="w-4 h-4 mr-2 text-orange-400" /> AI Helper</button>
-              <button onClick={() => handleSave(false)} className="px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center"><Save className="w-4 h-4 mr-2" /> Save Draft</button>
-              <button onClick={() => handleSave(true)} className="px-5 py-2 bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all flex items-center"><CheckCircle className="w-4 h-4 mr-2" /> Publish</button>
+              <button onClick={() => handleSave(false)} className="px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center"><Save className="w-4 h-4 mr-2" /> {loading && !postId ? 'Creating...' : 'Save Draft'}</button>
+              <button onClick={() => handleSave(true)} className="px-5 py-2 bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all flex items-center"><CheckCircle className="w-4 h-4 mr-2" /> Publish Now</button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-6">
+              {/* Title & Info Card */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Movie/Series Title</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Movie/Series Title</label>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-lg" placeholder="e.g., Inception (2010)"/>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Labels Management */}
+                <div className="pt-2 border-t border-slate-50">
+                  <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider flex items-center"><Hash className="w-3 h-3 mr-1" /> Categories (Labels)</label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {PREDEFINED_LABELS.map(label => (
+                      <button
+                        key={label}
+                        onClick={() => toggleLabel(label)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                          selectedLabels.includes(label) 
+                          ? 'bg-orange-100 border-orange-200 text-orange-700 shadow-sm' 
+                          : 'bg-white border-slate-200 text-slate-500 hover:border-orange-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <input 
+                    type="text" 
+                    value={customLabels} 
+                    onChange={(e) => setCustomLabels(e.target.value)} 
+                    className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none text-xs" 
+                    placeholder="Add other labels (comma separated)..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Star className="w-3 h-3 mr-1" /> IMDb Rating</label>
                     <input type="text" value={movieData.imdb} onChange={(e) => setMovieData({...movieData, imdb: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="8.8"/>
@@ -261,57 +336,52 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><User className="w-3 h-3 mr-1" /> Director</label>
-                    <input type="text" value={movieData.director} onChange={(e) => setMovieData({...movieData, director: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Christopher Nolan"/>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><DollarSign className="w-3 h-3 mr-1" /> Budget</label>
-                    <input type="text" value={movieData.budget} onChange={(e) => setMovieData({...movieData, budget: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="$160 Million"/>
-                  </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><User className="w-3 h-3 mr-1" /> Director</label>
+                  <input type="text" value={movieData.director} onChange={(e) => setMovieData({...movieData, director: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Christopher Nolan"/>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Users className="w-3 h-3 mr-1" /> Cast</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Users className="w-3 h-3 mr-1" /> Cast Members</label>
                   <input type="text" value={movieData.cast} onChange={(e) => setMovieData({...movieData, cast: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="Leonardo DiCaprio, Joseph Gordon-Levitt..."/>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Poster URL</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center"><Image className="w-3 h-3 mr-1" /> Poster URL</label>
                   <input type="text" value={movieData.posterUrl} onChange={(e) => setMovieData({...movieData, posterUrl: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none" placeholder="https://..."/>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Plot Summary</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Plot Summary</label>
                   <textarea value={movieData.plot} onChange={(e) => setMovieData({...movieData, plot: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border-0 rounded-xl outline-none resize-none h-24 text-sm" placeholder="A thief who steals corporate secrets..."></textarea>
                 </div>
               </div>
             </div>
 
             <div className="space-y-6">
+              {/* Download Links Card */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
                    <div className="flex items-center space-x-2 text-slate-400"><Link className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Download Buttons</span></div>
-                   <button onClick={() => setMovieData({...movieData, downloadLinks: [...movieData.downloadLinks, { label: 'Download', url: '' }]})} className="text-orange-600 hover:text-orange-700 flex items-center text-xs font-bold"><PlusCircle className="w-4 h-4 mr-1" /> Add Link</button>
+                   <button onClick={() => setMovieData({...movieData, downloadLinks: [...movieData.downloadLinks, { label: 'Download', url: '' }]})} className="text-orange-600 hover:text-orange-700 flex items-center text-xs font-bold hover:scale-105 transition-transform"><PlusCircle className="w-4 h-4 mr-1" /> Add Link</button>
                 </div>
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] pr-2">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
                   {movieData.downloadLinks.map((link, index) => (
-                    <div key={index} className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100 relative group">
+                    <div key={index} className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100 relative group transition-colors hover:bg-slate-100">
                       <div className="flex gap-2">
                         <input type="text" value={link.label} onChange={(e) => {const n=[...movieData.downloadLinks]; n[index].label=e.target.value; setMovieData({...movieData, downloadLinks:n})}} className="w-1/3 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none" placeholder="Button Label"/>
                         <input type="text" value={link.url} onChange={(e) => {const n=[...movieData.downloadLinks]; n[index].url=e.target.value; setMovieData({...movieData, downloadLinks:n})}} className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none" placeholder="Direct Link URL"/>
                       </div>
-                      <button onClick={() => setMovieData({...movieData, downloadLinks: movieData.downloadLinks.filter((_,i)=>i!==index)})} className="absolute -right-2 -top-2 bg-white text-red-500 shadow-sm rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><MinusCircle className="w-4 h-4" /></button>
+                      <button onClick={() => setMovieData({...movieData, downloadLinks: movieData.downloadLinks.filter((_,i)=>i!==index)})} className="absolute -right-2 -top-2 bg-white text-red-500 shadow-md rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all hover:scale-110"><MinusCircle className="w-4 h-4" /></button>
                     </div>
                   ))}
                 </div>
                 {sources.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-slate-50">
-                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-2 flex items-center"><Globe className="w-3 h-3 mr-1" /> Data Sources (Grounding)</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-2 flex items-center"><Globe className="w-3 h-3 mr-1" /> Live Web Sources</p>
                     <div className="flex flex-col gap-1">
                       {sources.map((src, i) => src.web && (
-                        <a key={i} href={src.web.uri} target="_blank" className="text-[10px] text-blue-500 hover:underline truncate">{src.web.title || src.web.uri}</a>
+                        <a key={i} href={src.web.uri} target="_blank" className="text-[10px] text-blue-500 hover:underline truncate transition-all opacity-70 hover:opacity-100">{src.web.title || src.web.uri}</a>
                       ))}
                     </div>
                   </div>
@@ -321,22 +391,23 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+             <div className="flex items-center space-x-2 text-slate-400 mb-3"><Type className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Custom Content Editor</span></div>
              <RichTextEditor value={content} onChange={setContent} />
           </div>
 
-          {error && <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl text-red-700 text-sm font-medium flex items-center"><AlertCircle className="w-4 h-4 mr-2" /> {error}</div>}
-          {success && <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl text-green-700 text-sm font-medium flex items-center"><CheckCircle className="w-4 h-4 mr-2" /> Action Successful!</div>}
+          {error && <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl text-red-700 text-sm font-medium flex items-center animate-in slide-in-from-top-1"><AlertCircle className="w-4 h-4 mr-2" /> {error}</div>}
+          {success && <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl text-green-700 text-sm font-medium flex items-center animate-in slide-in-from-top-1"><CheckCircle className="w-4 h-4 mr-2" /> Action Successful!</div>}
         </div>
       </div>
 
       <aside className={`fixed right-0 top-[80px] h-[calc(100vh-100px)] w-80 bg-white border-l border-slate-200 shadow-2xl transition-transform duration-300 transform z-20 ${isAiSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex flex-col h-full p-6">
-          <div className="flex items-center justify-between mb-8"><h3 className="text-lg font-bold text-slate-800 flex items-center"><Sparkles className="w-5 h-5 text-orange-500 mr-2" /> AI Assistant</h3><button onClick={() => setIsAiSidebarOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button></div>
+          <div className="flex items-center justify-between mb-8"><h3 className="text-lg font-bold text-slate-800 flex items-center"><Sparkles className="w-5 h-5 text-orange-500 mr-2" /> AI Assistant</h3><button onClick={() => setIsAiSidebarOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X className="w-5 h-5" /></button></div>
           <div className="space-y-3 mb-8">
-            <button onClick={() => handleAiAction('OPTIMIZE_TITLE')} className="w-full flex items-center p-3 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-orange-50 rounded-xl transition-all"><Wand2 className="w-4 h-4 mr-3 text-orange-400" /> Optimize Title</button>
-            <button onClick={() => handleAiAction('FIX_GRAMMAR')} className="w-full flex items-center p-3 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-orange-50 rounded-xl transition-all"><Languages className="w-4 h-4 mr-3 text-orange-400" /> Fix Grammar</button>
+            <button onClick={() => handleAiAction('OPTIMIZE_TITLE')} className="w-full flex items-center p-3 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-orange-50 rounded-xl transition-all border border-transparent hover:border-orange-100"><Wand2 className="w-4 h-4 mr-3 text-orange-400" /> Optimize Title</button>
+            <button onClick={() => handleAiAction('FIX_GRAMMAR')} className="w-full flex items-center p-3 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-orange-50 rounded-xl transition-all border border-transparent hover:border-orange-100"><Languages className="w-4 h-4 mr-3 text-orange-400" /> Fix Grammar</button>
           </div>
-          <div className="flex-1 bg-slate-50 rounded-2xl p-4 overflow-y-auto border border-slate-100 relative">
+          <div className="flex-1 bg-slate-50 rounded-2xl p-4 overflow-y-auto border border-slate-100 relative custom-scrollbar">
              {aiLoading ? <div className="absolute inset-0 flex items-center justify-center bg-white/80"><Loader2 className="w-10 h-10 text-orange-500 animate-spin" /></div> : aiResult && <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{aiResult}</div>}
           </div>
         </div>
