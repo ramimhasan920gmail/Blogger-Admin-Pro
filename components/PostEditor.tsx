@@ -7,7 +7,7 @@ import RichTextEditor from './RichTextEditor';
 import { 
   ArrowLeft, Save, CheckCircle, AlertCircle, Sparkles, 
   Wand2, FileJson, Languages, Loader2, X, Film, Image, 
-  Star, Type, Link, PlusCircle, MinusCircle, Tags
+  Star, Type, Link, PlusCircle, MinusCircle, Tags, MagicWand
 } from 'lucide-react';
 
 interface PostEditorProps {
@@ -234,7 +234,18 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
           <div className="flex items-center justify-between sticky top-0 bg-slate-50 py-2 z-10">
             <button onClick={onBack} className="flex items-center text-sm font-bold text-slate-500 hover:text-slate-800"><ArrowLeft className="w-4 h-4 mr-1" /> Back</button>
             <div className="flex space-x-2">
-              <button onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)} className={`px-4 py-2 border rounded-xl text-sm font-bold flex items-center transition-all ${isAiSidebarOpen ? 'bg-orange-100 border-orange-200 text-orange-700' : 'bg-white text-slate-700 hover:bg-slate-50 shadow-sm'}`}><Sparkles className="w-4 h-4 mr-2" /> AI Helper</button>
+              <button 
+                onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)} 
+                className={`px-4 py-2 border rounded-xl text-sm font-bold flex items-center transition-all ${isAiSidebarOpen ? 'bg-orange-100 border-orange-200 text-orange-700' : 'bg-white text-slate-700 hover:bg-slate-50 shadow-sm'}`}
+              >
+                <Sparkles className="w-4 h-4 mr-2" /> AI Helper
+              </button>
+              <button 
+                onClick={() => { setIsAiSidebarOpen(true); handleAiAction('SUMMARIZE'); }} 
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-bold flex items-center shadow-md hover:shadow-lg transition-all active:scale-95"
+              >
+                <Wand2 className="w-4 h-4 mr-2" /> Generate Plot
+              </button>
               <button onClick={() => handleSave(false)} disabled={loading} className="px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm hover:bg-slate-50 disabled:opacity-50 flex items-center"><Save className="w-4 h-4 mr-2" /> Save Draft</button>
               <button onClick={() => handleSave(true)} disabled={loading} className="px-5 py-2 bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 disabled:opacity-50 flex items-center"><CheckCircle className="w-4 h-4 mr-2" /> Publish</button>
             </div>
