@@ -51,7 +51,6 @@ export interface AuthState {
 }
 
 export interface AppSettings {
-  geminiApiKey: string;
   openAiApiKey?: string;
   grokApiKey?: string;
 }
