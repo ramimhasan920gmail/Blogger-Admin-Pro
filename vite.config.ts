@@ -4,11 +4,13 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // base: './' makes the app "GitHub friendly" by ensuring assets load 
-  // correctly regardless of whether it's at the root or a subfolder.
   base: './',
   define: {
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
+    // Ensuring process.env is handled robustly in the browser
+    'process.env': {
+      API_KEY: process.env.API_KEY || ''
+    },
+    'global': 'window', // Some libraries expect 'global' to exist
   },
   build: {
     outDir: 'dist',
@@ -16,10 +18,20 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: './index.html'
-      }
+      },
+      // Ensure that we don't treat internal dependencies as external unless specified
+      external: []
+    },
+    commonjsOptions: {
+      include: [/node_modules/],
     }
   },
   server: {
     port: 3000
+  },
+  resolve: {
+    alias: {
+      '@': '/'
+    }
   }
 });
