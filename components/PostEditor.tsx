@@ -7,7 +7,7 @@ import RichTextEditor from './RichTextEditor';
 import { 
   ArrowLeft, Save, CheckCircle, AlertCircle, Sparkles, 
   Wand2, FileJson, Languages, Loader2, X, Film, Image, 
-  Star, Type, Link, PlusCircle, MinusCircle, Tags, MagicWand,
+  Star, Type, Link, PlusCircle, MinusCircle, Tags,
   Users, User, DollarSign, Globe
 } from 'lucide-react';
 
@@ -197,7 +197,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack 
                 disabled={aiLoading}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold flex items-center shadow-md hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-95"
               >
-                {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MagicWand className="w-4 h-4 mr-2" />}
+                {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
                 Auto-Fill with AI
               </button>
               <button onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold flex items-center shadow-sm hover:bg-slate-50 transition-all"><Sparkles className="w-4 h-4 mr-2 text-orange-400" /> AI Helper</button>
