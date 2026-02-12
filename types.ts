@@ -52,6 +52,8 @@ export interface AuthState {
 
 export interface AppSettings {
   geminiApiKey: string;
+  openAiApiKey?: string;
+  grokApiKey?: string;
 }
 
 export type AISuggestionType = 'OPTIMIZE_TITLE' | 'SUMMARIZE' | 'EXPAND' | 'FIX_GRAMMAR' | 'FETCH_MOVIE_DETAILS';

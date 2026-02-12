@@ -45,8 +45,8 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [sources, setSources] = useState<any[]>([]);
 
-  // Pass user API key to AIService
-  const aiService = new AIService(settings.geminiApiKey);
+  // Pass full settings to AIService for fallback support
+  const aiService = new AIService(settings);
 
   useEffect(() => {
     if (postId) {
@@ -98,9 +98,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
 
   const extractJsonFromText = (text: string) => {
     try {
-      // Remove markdown code blocks if present
       const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      // Try to find the first '{' and last '}'
       const firstBrace = cleaned.indexOf('{');
       const lastBrace = cleaned.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace !== -1) {
@@ -109,13 +107,13 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
       return JSON.parse(cleaned);
     } catch (e) {
       console.error("JSON extraction error:", e);
-      throw new Error("AI returned invalid data format.");
+      throw new Error("এআই ডেটা সঠিক ফরম্যাটে দিতে পারেনি। অন্য কোনো এপিআই ট্রাই করুন।");
     }
   };
 
   const handleAutoFill = async () => {
     if (!title) {
-      setError("Please enter a movie name first.");
+      setError("আগে মুভির নাম দিন।");
       return;
     }
     setAiLoading(true);

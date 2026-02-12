@@ -6,7 +6,7 @@ import { BloggerService } from './services/bloggerService';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import PostEditor from './components/PostEditor';
-import { LogIn, AlertTriangle, Loader2, Copy, Check, Settings, ShieldAlert, Info, Key, Save, AlertCircle } from 'lucide-react';
+import { LogIn, AlertTriangle, Loader2, Copy, Check, Settings, ShieldAlert, Info, Key, Save, AlertCircle, Bot, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>({
@@ -17,6 +17,8 @@ const App: React.FC = () => {
 
   const [settings, setSettings] = useState<AppSettings>({
     geminiApiKey: localStorage.getItem('app_gemini_api_key') || '',
+    openAiApiKey: localStorage.getItem('app_openai_api_key') || '',
+    grokApiKey: localStorage.getItem('app_grok_api_key') || '',
   });
 
   const [view, setView] = useState<'DASHBOARD' | 'EDITOR' | 'SETTINGS'>('DASHBOARD');
@@ -25,13 +27,6 @@ const App: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [loginError, setLoginError] = useState<{title: string, msg: string} | null>(null);
   const [settingsStatus, setSettingsStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [copied, setCopied] = useState(false);
-
-  const copyOrigin = () => {
-    navigator.clipboard.writeText(window.location.origin);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const completeLogin = useCallback(async (accessToken: string, expiresIn: number) => {
     setIsVerifying(true);
@@ -124,14 +119,15 @@ const App: React.FC = () => {
   };
 
   const handleSaveSettings = () => {
-    const trimmedKey = settings.geminiApiKey.trim();
-    if (!trimmedKey) {
+    if (!settings.geminiApiKey && !settings.openAiApiKey && !settings.grokApiKey) {
       setSettingsStatus('error');
       return;
     }
     
-    localStorage.setItem('app_gemini_api_key', trimmedKey);
-    setSettings({ ...settings, geminiApiKey: trimmedKey });
+    localStorage.setItem('app_gemini_api_key', settings.geminiApiKey.trim());
+    localStorage.setItem('app_openai_api_key', settings.openAiApiKey?.trim() || '');
+    localStorage.setItem('app_grok_api_key', settings.grokApiKey?.trim() || '');
+    
     setSettingsStatus('success');
     
     setTimeout(() => {
@@ -214,50 +210,63 @@ const App: React.FC = () => {
 
       {view === 'SETTINGS' && (
         <div className="max-w-2xl mx-auto px-4 animate-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden mb-10">
             <div className="p-8 bg-slate-900 text-white">
-              <h2 className="text-2xl font-bold flex items-center"><Settings className="w-6 h-6 mr-3 text-orange-400" /> App Settings</h2>
-              <p className="text-slate-400 text-sm mt-2">Manage your AI API keys and application preferences.</p>
+              <h2 className="text-2xl font-bold flex items-center"><Settings className="w-6 h-6 mr-3 text-orange-400" /> AI Provider Settings</h2>
+              <p className="text-slate-400 text-sm mt-2">Add fallback APIs to ensure your app always works even if one provider is down.</p>
             </div>
             <div className="p-8 space-y-6">
+              {/* Gemini */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
                   <Key className="w-4 h-4 mr-2 text-orange-500" /> 
-                  Gemini AI API Key
+                  Gemini API Key (Primary)
                 </label>
-                <div className="relative">
-                   <input 
-                    type="text"
-                    value={settings.geminiApiKey}
-                    onChange={(e) => {
-                      setSettings({...settings, geminiApiKey: e.target.value});
-                      setSettingsStatus('idle');
-                    }}
-                    className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-mono text-sm ${
-                      settingsStatus === 'error' ? 'border-red-500 bg-red-50' : 'border-slate-200'
-                    }`}
-                    placeholder="Enter your Gemini API Key..."
-                  />
-                  {settingsStatus === 'success' && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                      <Check className="w-5 h-5" />
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
-                  <p className="text-xs text-orange-800 leading-relaxed">
-                    <span className="font-bold">How to get a key?</span> Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline font-bold">Google AI Studio</a>, create a free API key, and paste it here. This key is used for movie data fetching and SEO optimization.
-                  </p>
-                </div>
+                <input 
+                  type="text"
+                  value={settings.geminiApiKey}
+                  onChange={(e) => setSettings({...settings, geminiApiKey: e.target.value})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-mono text-xs"
+                  placeholder="Paste Gemini API Key..."
+                />
+              </div>
+
+              {/* OpenAI */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                  <Bot className="w-4 h-4 mr-2 text-green-500" /> 
+                  OpenAI API Key (Fallback 1)
+                </label>
+                <input 
+                  type="text"
+                  value={settings.openAiApiKey}
+                  onChange={(e) => setSettings({...settings, openAiApiKey: e.target.value})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all font-mono text-xs"
+                  placeholder="sk-..."
+                />
+              </div>
+
+              {/* Grok */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                  <Zap className="w-4 h-4 mr-2 text-slate-900" /> 
+                  Grok / X.AI API Key (Fallback 2)
+                </label>
+                <input 
+                  type="text"
+                  value={settings.grokApiKey}
+                  onChange={(e) => setSettings({...settings, grokApiKey: e.target.value})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none transition-all font-mono text-xs"
+                  placeholder="xai-..."
+                />
               </div>
               
               <div className="pt-4 flex gap-3">
                 <button
                   onClick={handleSaveSettings}
-                  disabled={settingsStatus === 'success'}
-                  className="flex-1 flex items-center justify-center py-3 px-6 bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center py-3 px-6 bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all active:scale-95"
                 >
-                  {settingsStatus === 'success' ? 'Saved!' : <><Save className="w-5 h-5 mr-2" /> Save Changes</>}
+                  {settingsStatus === 'success' ? 'Saved!' : <><Save className="w-5 h-5 mr-2" /> Save All Keys</>}
                 </button>
                 <button
                   onClick={() => setView('DASHBOARD')}
@@ -269,7 +278,7 @@ const App: React.FC = () => {
               
               {settingsStatus === 'error' && (
                 <p className="text-red-500 text-xs font-bold flex items-center justify-center">
-                  <AlertCircle className="w-4 h-4 mr-1" /> API Key cannot be empty!
+                  <AlertCircle className="w-4 h-4 mr-1" /> At least one API key is required!
                 </p>
               )}
             </div>
