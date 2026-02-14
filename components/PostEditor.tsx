@@ -27,6 +27,8 @@ const PREDEFINED_LABELS = [
   "TV-Series"
 ];
 
+const REDIRECT_PREFIX = "https://moviedroopfile.blogspot.com/?url=";
+
 const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack, settings }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -89,9 +91,18 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
             doc.querySelectorAll('.seasons li').forEach(li => {
               const a = li.querySelector('a');
               if (a) {
+                let rawUrl = a.getAttribute('href') || '';
+                // If the link is already prefixed with our redirector, clean it up for the editor UI
+                if (rawUrl.startsWith(REDIRECT_PREFIX)) {
+                  try {
+                    rawUrl = decodeURIComponent(rawUrl.replace(REDIRECT_PREFIX, ''));
+                  } catch (e) {
+                    rawUrl = rawUrl.replace(REDIRECT_PREFIX, '');
+                  }
+                }
                 links.push({
                   label: a.textContent || 'Download',
-                  url: a.getAttribute('href') || ''
+                  url: rawUrl
                 });
               }
             });
@@ -127,7 +138,6 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
       }
       return JSON.parse(cleaned);
     } catch (e) {
-      // If direct parsing fails, maybe it's already a stringified object from TMDB
       try { return JSON.parse(text); } catch(e2) {
         console.error("JSON extraction error:", e);
         throw new Error("ডেটা সঠিক ফরম্যাটে পাওয়া যায়নি।");
@@ -185,7 +195,14 @@ const PostEditor: React.FC<PostEditorProps> = ({ bloggerService, postId, onBack,
   const generateMovieHTML = () => {
     const linksHTML = movieData.downloadLinks
       .filter(l => l.url)
-      .map(l => `<li><a href="${l.url}" class="download-btn" target="_blank">${l.label}</a></li>`)
+      .map(l => {
+        // Automatically prefix the URL with our redirector if not already present
+        const finalUrl = l.url.startsWith(REDIRECT_PREFIX) 
+          ? l.url 
+          : `${REDIRECT_PREFIX}${encodeURIComponent(l.url)}`;
+        
+        return `<li><a href="${finalUrl}" class="download-btn" target="_blank">${l.label}</a></li>`;
+      })
       .join('\n');
 
     return `
